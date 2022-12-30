@@ -3,6 +3,7 @@ import h5py
 from scipy.fft import ifftn, fftn, fftfreq
 from scipy.ndimage import fourier_gaussian
 from scipy.stats import binned_statistic_dd
+from scipy.interpolate import interpn
 import os, sys
 
 class Particles:
@@ -11,6 +12,7 @@ class Particles:
         self.phi = None
         self.FFTphi = None
         self.tensor = None
+        self.coords = None
 
         self.ngrid = ngrid
         self.h = L/ngrid
@@ -25,28 +27,45 @@ class Particles:
         else:
             raise TypeError('value must be a float scalar or 1D numpy array')
         self.rho = ret.statistic / self.h**3
+        coords = ret.bin_edges[0][:-1] + ret.bin_edges[0][1:]
+        self.coords = (coords, coords, coords)
     
-    def FFTpotential(self, Rs, soft=1e-38):
+    def FFTpotential(self, Rs, soft=1e-38, workers=4):
         Ghat = -1. / (np.sum(self.k**2, axis=0) + soft)
         Ghat[0,0,0] = 0.
-        self.FFTphi = fourier_gaussian(fftn(self.rho), sigma=Rs) * Ghat
+        self.FFTphi = fourier_gaussian(fftn(self.rho, workers=workers), sigma=Rs) * Ghat
 
-    def PotentialField(self, Rs=1, soft=1e-38):
+    def PotentialField(self, Rs=1, soft=1e-38, workers=4):
         if self.FFTphi is None:
-            self.FFTpotential(Rs, soft=soft)
-        self.phi = ifftn(self.FFTphi)
+            self.FFTpotential(Rs, soft=soft, workers=workers)
+        self.phi = ifftn(self.FFTphi, workers=workers)
 
     def PotentialInterp(self, pos):
-        return
+        if self.phi is None:
+            raise TypeError('phi is none')
+        if self.coords is None:
+            raise TypeError('coords is none')
+        return interpn(self.coords, self.phi, pos)
     
-    def TensorField(self, Rs=1, soft=1e-38):
+    def TensorField(self, Rs=1, soft=1e-38, workers=4):
         if self.FFTphi is None:
-            self.FFTpotential(Rs, soft)
+            self.FFTpotential(Rs, soft=soft, workers=workers)
         Hij = -np.einsum('iklm,jklm->ijklm', self.k, self.k)
-        self.tensor = ifftn(self.FFTphi * Hij, axes=(2,3,4)).real
+        self.tensor = ifftn(self.FFTphi * Hij, axes=(2,3,4), workers=workers).real
 
     def TensorInterp(self, pos):
-        return 
+        if self.tensor is None:
+            raise TypeError('tensor is none')
+        if self.coords is None:
+            raise TypeError('coords is none')
+
+        tensor = np.zeros((pos.shape[0], 3, 3))
+        for i in range(3):
+            tensor[:,i,i] = interpn(self.coords, self.tensor[i,i], pos)
+            for j in range(i):
+                tensor[:,i,j] = interpn(self.coords, self.tensor[i,j], pos)
+                tensor[:,j,i] = tensor[:,i,j]
+        return tensor
 
 if __name__ == '__main__':
     if len(sys.argv) != 2:
