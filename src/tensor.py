@@ -21,10 +21,19 @@ class Particles:
             raise TypeError('value must be a float scalar or 3D numpy array')
         self.mesh = ret.statistic / self.h**3
     
-    def tensor(self, Rs, soft=1e-38):
+    def FFTpotential(self, Rs, soft=1e-38):
         k = fftfreq(self.ngrid, d=self.h)[np.meshgrid[0:self.ngrid,0:self.ngrid,0:self.ngrid]]
         Ghat = -1. / (np.sum(k**2, axis=0) + soft)
         Ghat[0,0,0] = 0.
-        FFTphi = fourier_gaussian(fftn(self.mesh), sigma=Rs) * Ghat
+        return fourier_gaussian(fftn(self.mesh), sigma=Rs) * Ghat
+
+    def potential(self, Rs, soft=1e-38):
+        FFTphi = self.FFTpotential(Rs, soft=soft)
+        return ifftn(FFTphi).real
+        
+    def tensor(self, Rs, soft=1e-38):
+        k = fftfreq(self.ngrid, d=self.h)[np.meshgrid[0:self.ngrid,0:self.ngrid,0:self.ngrid]]
+        FFTphi = self.FFTpotential(Rs, soft=soft)
         Hij = -np.einsum('iklm,jklm->ijklm', k, k)
         return ifftn(FFTphi * Hij, axes=(2,3,4)).real
+
