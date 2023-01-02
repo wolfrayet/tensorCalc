@@ -44,7 +44,7 @@ class Particles:
                 self.FFTpotential(Rs, soft=soft, workers=workers)
             else:
                 raise TypeError('pos and value must not be none to update the grids')
-        self.phi = ifftn(self.FFTphi, workers=workers)
+        self.phi = ifftn(self.FFTphi, workers=workers).real
 
     def PotentialInterp(self, pos):
         if self.phi is None:
@@ -54,6 +54,16 @@ class Particles:
         return interpn(self.coords, self.phi, pos)
     
     def TensorField(self, Rs=1, soft=1e-38, workers=4, update=False, pos=None, value=None):
+        '''
+        tensor format:
+            i j index
+            0 0 0
+            1 0 1
+            1 1 2
+            2 0 3
+            2 1 4
+            2 2 5
+        '''
         if self.FFTphi is None:
             self.FFTpotential(Rs, soft=soft, workers=workers)
         if update:
@@ -62,21 +72,27 @@ class Particles:
                 self.FFTpotential(Rs, soft=soft, workers=workers)
             else:
                 raise TypeError('pos and value must not be none to update the grids')
-        Hij = -np.einsum('iklm,jklm->ijklm', self.k, self.k)
-        self.tensor = ifftn(self.FFTphi * Hij, axes=(2,3,4), workers=workers).real
+        # Hij = -np.einsum('iklm,jklm->ijklm', self.k, self.k)
+        # self.tensor = ifftn(self.FFTphi * Hij, axes=(2,3,4), workers=workers).real
+        tensor = np.zeros((6, self.ngrid, self.ngrid, self.ngrid))
+        for i in range(3):
+            for j in range(i+1):
+                index = int((i**2+i)/2 + j)
+                tensor[index] = ifftn(self.FFTphi*self.k[i]*self.k[j], workers=workers).real
+        self.tensor = tensor
 
     def TensorInterp(self, pos):
+        '''
+        interpolate tensor at given positions (pos) from the field
+        '''
         if self.tensor is None:
             raise TypeError('tensor is none')
         if self.coords is None:
             raise TypeError('coords is none')
 
-        tensor = np.zeros((pos.shape[0], 3, 3))
-        for i in range(3):
-            tensor[:,i,i] = interpn(self.coords, self.tensor[i,i], pos)
-            for j in range(i):
-                tensor[:,i,j] = interpn(self.coords, self.tensor[i,j], pos)
-                tensor[:,j,i] = tensor[:,i,j]
+        tensor = np.zeros((pos.shape[0], 6))
+        for i in range(6):
+            tensor[i] = interpn(self.coords, self.tensor[i], pos)
         return tensor
 
 if __name__ == '__main__':
