@@ -35,9 +35,15 @@ class Particles:
         Ghat[0,0,0] = 0.
         self.FFTphi = fourier_gaussian(fftn(self.rho, workers=workers), sigma=Rs) * Ghat
 
-    def PotentialField(self, Rs=1, soft=1e-38, workers=4):
+    def PotentialField(self, Rs=1, soft=1e-38, workers=4, update=False, pos=None, value=None):
         if self.FFTphi is None:
             self.FFTpotential(Rs, soft=soft, workers=workers)
+        if update:
+            if pos is not None and value is not None:
+                self.assign(pos, value)
+                self.FFTpotential(Rs, soft=soft, workers=workers)
+            else:
+                raise TypeError('pos and value must not be none to update the grids')
         self.phi = ifftn(self.FFTphi, workers=workers)
 
     def PotentialInterp(self, pos):
@@ -47,9 +53,15 @@ class Particles:
             raise TypeError('coords is none')
         return interpn(self.coords, self.phi, pos)
     
-    def TensorField(self, Rs=1, soft=1e-38, workers=4):
+    def TensorField(self, Rs=1, soft=1e-38, workers=4, update=False, pos=None, value=None):
         if self.FFTphi is None:
             self.FFTpotential(Rs, soft=soft, workers=workers)
+        if update:
+            if pos is not None and value is not None:
+                self.assign(pos, value)
+                self.FFTpotential(Rs, soft=soft, workers=workers)
+            else:
+                raise TypeError('pos and value must not be none to update the grids')
         Hij = -np.einsum('iklm,jklm->ijklm', self.k, self.k)
         self.tensor = ifftn(self.FFTphi * Hij, axes=(2,3,4), workers=workers).real
 
@@ -74,5 +86,21 @@ if __name__ == '__main__':
     if not os.path.isfile(sys.argv[1]):
         raise FileNotFoundError
 
-    hf = h5py.File(sys.argv[1], 'r')
-    
+    # parameters
+    ngrid = 256                 # number of grids
+    Lbox = 500                  # box size, ckpc/h
+    Rs = 1                      # smoothing scale (FWHM), ckpc/h
+    workers = os.cpu_count()    # number of CPU for FFT parallel computing
+
+    # read data
+    hf = h5py.File(sys.argv[1], 'r')['particles']
+    pos = np.stack((hf['x'], hf['y'], hf['z']), axis=1)
+    mass = hf['host_lgmass']
+    del hf
+
+    # assign grid
+    grid = Particles(ngrid, Lbox)
+    grid.assign(pos, mass)
+
+    # calculate tensor field
+    grid.TensorField(Rs=Rs, workers=workers)
