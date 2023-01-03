@@ -23,7 +23,7 @@ class Particles:
         # parameters
         self.ngrid = ngrid
         self.h = L/ngrid
-        self.range = [[0,L],[0,L],[0,L]]
+        self.range = [[-L/2,L/2],[-L/2,L/2],[-L/2,L/2]]
         self.k = fftfreq(ngrid, d=self.h)[np.mgrid[0:ngrid,0:ngrid,0:ngrid]] * np.pi * 2
 
     def assign(self, pos, mass):
