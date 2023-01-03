@@ -5,7 +5,10 @@ This is the code to calculate the tidal tensor from simiulation data.
 * `notebook`: example notebook or any other jupyter notebook
 * `data`: any data goes into here
 
-## Data Description
+## General
+This grid-based code calculates the mass density, the potential, and the tensor field as grid level and can further interpolate the value at any given position. 
+
+## Data Description (copy from slack)
 There are three datasets: `particles`, `halos`, and `mock_gals`. `Particles` and `halos` are all galaxies in the 500 Mpc/h cube and are identical, it's an artifact of how the density estimation code was written. The dataset `mock_gals` is a subset of particles that are within the SDSS reconstructed volume (`sdss_flag` = 1).
 The galaxies (dataset particles) have these fields:
 
