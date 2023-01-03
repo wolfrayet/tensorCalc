@@ -73,6 +73,7 @@ class Particles:
                 self.FFTpotential(Rs, soft=soft, workers=workers)
             else:
                 raise TypeError('pos and value must not be none to update the grids')
+        
         tensor = np.zeros((6, self.ngrid, self.ngrid, self.ngrid))       
         def task(i, j):
             index = int((i*i + i)/2 + j)
@@ -92,8 +93,10 @@ class Particles:
             raise TypeError('coords is none')
 
         tensor = np.zeros((pos.shape[0], 6))
-        for i in range(6):
+        def task(i):
             tensor[i] = interpn(self.coords, self.tensor[i], pos)
+        with multiprocessing.Pool() as pool:
+            pool.imap(task, range(6))
         return tensor
 
 if __name__ == '__main__':
@@ -121,3 +124,10 @@ if __name__ == '__main__':
 
     # calculate tensor field
     grid.TensorField(Rs=Rs, workers=workers)
+
+    # interpolate
+    x = np.array([10, 20])
+    y = np.array([300, 300])
+    z = np.array([60, 60])
+    xyz = np.stack((x, y, z), axis=1)
+    tensor = grid.TensorInterp(xyz)
