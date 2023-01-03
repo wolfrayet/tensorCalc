@@ -9,54 +9,93 @@ import multiprocessing
 
 class Particles:
     def __init__(self, ngrid, L):
+        '''
+        ngrid:  number of grids per side
+        L:      box size in comoving Mpc/h
+        '''
+        # grid level
         self.rho = np.zeros((ngrid, ngrid, ngrid))
         self.phi = None
         self.FFTphi = None
         self.tensor = None
         self.coords = None
 
+        # parameters
         self.ngrid = ngrid
         self.h = L/ngrid
         self.range = [[0,L],[0,L],[0,L]]
         self.k = fftfreq(ngrid, d=self.h)[np.mgrid[0:ngrid,0:ngrid,0:ngrid]] * np.pi * 2
 
-    def assign(self, pos, value):
-        if isinstance(value, float):
-            ret = binned_statistic_dd(pos, value*pos.shape[0], self.ngrid, range=self.range)
-        elif isinstance(value, np.ndarray) & (np.ndim(value) == 1):
-            ret = binned_statistic_dd(pos, value, statistic='sum', bins=self.ngrid, range=self.range)
+    def assign(self, pos, mass):
+        '''
+        Assign patticles to the grid and create a grid of mass density.
+
+        pos:    particle position in comoving Mpc/h
+        mass:   particle mass
+        '''
+        if isinstance(mass, float):
+            ret = binned_statistic_dd(pos, mass*pos.shape[0], self.ngrid, range=self.range)
+        elif isinstance(mass, np.ndarray) & (np.ndim(mass) == 1):
+            ret = binned_statistic_dd(pos, mass, statistic='sum', bins=self.ngrid, range=self.range)
         else:
-            raise TypeError('value must be a float scalar or 1D numpy array')
+            raise TypeError('mass must be a float scalar or 1D numpy array')
         self.rho = ret.statistic / self.h**3
         coords = ret.bin_edges[0][:-1] + ret.bin_edges[0][1:]
         self.coords = (coords, coords, coords)
     
     def FFTpotential(self, Rs, soft=1e-38, workers=4):
+        '''
+        Calculate the potential field in FFT.
+
+        Rs:         smoothing length (FWHM) in comoving Mpc/h
+        soft:       softening
+        workers:    CPU for FFT parallel computing
+        '''
         Ghat = -1. / (np.sum(self.k**2, axis=0) + soft)
         Ghat[0,0,0] = 0.
         self.FFTphi = fourier_gaussian(fftn(self.rho, workers=workers), sigma=Rs) * Ghat
 
-    def PotentialField(self, Rs=1, soft=1e-38, workers=4, update=False, pos=None, value=None):
+    def PotentialField(self, Rs=1, soft=1e-38, workers=4, update=False, pos=None, mass=None):
+        '''
+        The function will calculate the potential field if FFTphi is empty. Users can also update
+        position and mass of particles by passing update=True.
+
+        Rs:         smoothing length (FWHM) in comoving Mpc/h
+        soft:       softening
+        workers:    CPU for FFT parallel computing
+        '''
         if self.FFTphi is None:
             self.FFTpotential(Rs, soft=soft, workers=workers)
         if update:
-            if pos is not None and value is not None:
-                self.assign(pos, value)
+            if pos is not None and mass is not None:
+                self.assign(pos, mass)
                 self.FFTpotential(Rs, soft=soft, workers=workers)
             else:
-                raise TypeError('pos and value must not be none to update the grids')
+                raise TypeError('pos and mass must not be none to update the grids')
         self.phi = ifftn(self.FFTphi, workers=workers).real
 
     def PotentialInterp(self, pos):
+        '''
+        Interpolate potential at given position(s) from the grid level.
+
+        pos:    position for interpolation in comoving Mpc/h
+        '''
         if self.phi is None:
             raise TypeError('phi is none')
         if self.coords is None:
             raise TypeError('coords is none')
         return interpn(self.coords, self.phi, pos)
     
-    def TensorField(self, Rs=1, soft=1e-38, workers=4, update=False, pos=None, value=None):
+    def TensorField(self, Rs=1, soft=1e-38, workers=4, update=False, pos=None, mass=None):
         '''
-        tensor format:
+        The function will calculate the potential field if FFTphi is empty. Users can also update
+        position and mass of particles by passing update=True.
+
+        Rs:         smoothing length (FWHM) in comoving Mpc/h
+        soft:       softening
+        workers:    CPU for FFT parallel computing
+
+        tensor Tij is stored as a flatten array with indexing as following:
             i j index
             0 0 0
             1 0 1
@@ -68,11 +107,11 @@ class Particles:
         if self.FFTphi is None:
             self.FFTpotential(Rs, soft=soft, workers=workers)
         if update:
-            if pos is not None and value is not None:
-                self.assign(pos, value)
+            if pos is not None and mass is not None:
+                self.assign(pos, mass)
                 self.FFTpotential(Rs, soft=soft, workers=workers)
             else:
-                raise TypeError('pos and value must not be none to update the grids')
+                raise TypeError('pos and mass must not be none to update the grids')
         
         tensor = np.zeros((6, self.ngrid, self.ngrid, self.ngrid))       
         def task(i, j):
@@ -85,7 +124,9 @@ class Particles:
 
     def TensorInterp(self, pos):
         '''
-        interpolate tensor at given positions (pos) from the field
+        Interpolate tensor at given position(s) from the grid level.
+
+        pos:    position for interpolation in comoving Mpc/h
         '''
         if self.tensor is None:
             raise TypeError('tensor is none')
