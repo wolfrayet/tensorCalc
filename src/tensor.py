@@ -5,6 +5,7 @@ from scipy.ndimage import fourier_gaussian
 from scipy.stats import binned_statistic_dd
 from scipy.interpolate import interpn
 import os, sys
+import multiprocessing
 
 class Particles:
     def __init__(self, ngrid, L):
@@ -72,13 +73,13 @@ class Particles:
                 self.FFTpotential(Rs, soft=soft, workers=workers)
             else:
                 raise TypeError('pos and value must not be none to update the grids')
-        # Hij = -np.einsum('iklm,jklm->ijklm', self.k, self.k)
-        # self.tensor = ifftn(self.FFTphi * Hij, axes=(2,3,4), workers=workers).real
-        tensor = np.zeros((6, self.ngrid, self.ngrid, self.ngrid))
-        for i in range(3):
-            for j in range(i+1):
-                index = int((i**2+i)/2 + j)
-                tensor[index] = ifftn(self.FFTphi*self.k[i]*self.k[j], workers=workers).real
+        tensor = np.zeros((6, self.ngrid, self.ngrid, self.ngrid))       
+        def task(i, j):
+            index = int((i*i + i)/2 + j)
+            tensor[index] = ifftn(self.FFTphi*self.k[i]*self.k[j], workers=workers).real
+        items = [(i, j) for i, j in zip(range(3), range(3)) if j <= i]
+        with multiprocessing.Pool() as pool:
+            pool.imap(task, items)
         self.tensor = tensor
 
     def TensorInterp(self, pos):
