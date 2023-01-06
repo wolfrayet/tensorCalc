@@ -53,7 +53,7 @@ class Particles:
         '''
         Ghat = -1. / (np.sum(self.k**2, axis=0) + soft)
         Ghat[0,0,0] = 0.
-        self.FFTphi = fourier_gaussian(fftn(self.rho, workers=workers), sigma=Rs) * Ghat
+        self.FFTphi = fourier_gaussian(fftn(self.rho, workers=workers), sigma=Rs/self.h) * Ghat
 
     def PotentialField(self, Rs=1, soft=1e-38, workers=4, update=False, pos=None, mass=None):
         '''
@@ -69,6 +69,8 @@ class Particles:
         if update:
             if pos is not None and mass is not None:
                 self.assign(pos, mass)
+                self.FFTpotential(Rs, soft=soft, workers=workers)
+            elif Rs is not None:
                 self.FFTpotential(Rs, soft=soft, workers=workers)
             else:
                 raise TypeError('pos and mass must not be none to update the grids')
@@ -109,6 +111,8 @@ class Particles:
         if update:
             if pos is not None and mass is not None:
                 self.assign(pos, mass)
+                self.FFTpotential(Rs, soft=soft, workers=workers)
+            elif Rs is not None:
                 self.FFTpotential(Rs, soft=soft, workers=workers)
             else:
                 raise TypeError('pos and mass must not be none to update the grids')
