@@ -1,3 +1,4 @@
 src/__pycache__/
 notebook/.ipynb_checkpoints/
 nohup.out
+notebook/test.ipynb
