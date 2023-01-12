@@ -34,7 +34,7 @@ class Particles:
         mass:   particle mass
         '''
         if isinstance(mass, float):
-            ret = binned_statistic_dd(pos, mass*pos.shape[0], self.ngrid, range=self.range)
+            ret = binned_statistic_dd(pos, mass*pos.shape[0], statistic='sum', self.ngrid, range=self.range)
         elif isinstance(mass, np.ndarray) & (np.ndim(mass) == 1):
             ret = binned_statistic_dd(pos, mass, statistic='sum', bins=self.ngrid, range=self.range)
         else:
