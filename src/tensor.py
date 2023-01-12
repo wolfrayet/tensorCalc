@@ -121,7 +121,7 @@ class Particles:
         def task(i, j):
             index = int((i*i + i)/2 + j)
             tensor[index] = ifftn(self.FFTphi*self.k[i]*self.k[j], workers=workers).real
-        items = [(i, j) for i, j in zip(range(3), range(3)) if j <= i]
+        items = [(i, j) for i in range(3) for j in range(3) if j <= i]
         with multiprocessing.Pool() as pool:
             pool.imap(task, items)
         self.tensor = tensor
