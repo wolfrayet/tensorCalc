@@ -155,7 +155,7 @@ class Particles:
 
         tensor = np.zeros((pos.shape[0], 6))
         for i in range(6):
-            tensor[:,i] = interpn(self.coords, self.tensor[i], pos)
+            tensor[:,i] = interpn(self.coords, self.tensor[i], pos, bounds_error=False, fill_value=None)
         return tensor
         # with multiprocessing.Pool() as pool:
         #     results = [pool.apply(interp_task, args=(self.coords, pos, self.tensor, i)) for i in range(6)]
