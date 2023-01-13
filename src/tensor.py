@@ -7,9 +7,11 @@ from scipy.interpolate import interpn
 import os, sys
 import multiprocessing
 
-def task(x, k, workers, i, j):
-    return ifftn(x*k[i]*k[j], workers=workers).real
+# def task(x, k, workers, i, j):
+#     return ifftn(x*k[i]*k[j], workers=workers).real
 
+def interp_task(coord, pos, value, i):
+    return interpn(coord, value[i], pos)
 class Particles:
     def __init__(self, ngrid, L):
         '''
@@ -152,11 +154,12 @@ class Particles:
             raise TypeError('coords is none')
 
         tensor = np.zeros((pos.shape[0], 6))
-        def task(i):
-            tensor[i] = interpn(self.coords, self.tensor[i], pos)
-        with multiprocessing.Pool() as pool:
-            pool.imap(task, range(6))
+        for i in range(6):
+            tensor[:,i] = interpn(self.coords, self.tensor[i], pos)
         return tensor
+        # with multiprocessing.Pool() as pool:
+        #     results = [pool.apply(interp_task, args=(self.coords, pos, self.tensor, i)) for i in range(6)]
+        # return results
 
 if __name__ == '__main__':
     if len(sys.argv) != 2:
