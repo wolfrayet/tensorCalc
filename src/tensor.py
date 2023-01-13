@@ -45,7 +45,7 @@ class Particles:
         else:
             raise TypeError('mass must be a float scalar or 1D numpy array')
         self.rho = ret.statistic / self.h**3
-        coords = ret.bin_edges[0][:-1] + ret.bin_edges[0][1:]
+        coords = 0.5*(ret.bin_edges[0][:-1] + ret.bin_edges[0][1:])
         self.coords = (coords, coords, coords)
     
     def FFTpotential(self, Rs, soft=1e-38, workers=4):
