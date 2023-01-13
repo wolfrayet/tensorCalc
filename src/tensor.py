@@ -7,6 +7,9 @@ from scipy.interpolate import interpn
 import os, sys
 import multiprocessing
 
+def task(x, k, workers, i, j):
+    return ifftn(x*k[i]*k[j], workers=workers).real
+
 class Particles:
     def __init__(self, ngrid, L):
         '''
@@ -105,6 +108,7 @@ class Particles:
             2 0 3
             2 1 4
             2 2 5
+            index = (i*i + i)/2 + j
         '''
         if self.FFTphi is None:
             self.FFTpotential(Rs, soft=soft, workers=workers)
@@ -117,15 +121,25 @@ class Particles:
             else:
                 raise TypeError('pos and mass must not be none to update the grids')
         
-        tensor = np.zeros((6, self.ngrid, self.ngrid, self.ngrid))       
-        def task(i, j):
-            index = int((i*i + i)/2 + j)
-            tensor[index] = ifftn(self.FFTphi*self.k[i]*self.k[j], workers=workers).real
-        items = [(i, j) for i in range(3) for j in range(3) if j <= i]
-        with multiprocessing.Pool() as pool:
-            pool.imap(task, items)
-        self.tensor = tensor
-
+        self.tensor = np.zeros((6, self.ngrid, self.ngrid, self.ngrid))       
+        ## old version
+        # def task(i, j):
+        #     index = int((i*i + i)/2 + j)
+        #     tensor[index] = ifftn(self.FFTphi*self.k[i]*self.k[j], workers=workers).real
+        # items = [(i, j) for i in range(3) for j in range(3) if j <= i]
+        # with multiprocessing.Pool() as pool:
+        #     pool.imap(task, items)
+        
+        # with multiprocessing.Pool() as pool:
+        #     results = [pool.apply_async(task, (self.FFTphi, self.k, workers, i, j,)) for i in range(3) for j in range(3) if j <= i]
+        #     for i, res in enumerate(results):
+        #         self.tensor[i] = res.get()
+        
+        for i in range(3):
+            for j in range(i+1):
+                index = int((i*i + i)/2 + j)
+                self.tensor[index] = ifftn(self.FFTphi*self.k[i]*self.k[j], workers=workers).real
+    
     def TensorInterp(self, pos):
         '''
         Interpolate tensor at given position(s) from the grid level.
