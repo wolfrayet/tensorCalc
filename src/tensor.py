@@ -20,6 +20,7 @@ class Particles:
         '''
         # grid level
         self.rho = np.zeros((ngrid, ngrid, ngrid))
+        self.rho_smooth = None
         self.phi = None
         self.FFTphi = None
         self.tensor = None
@@ -61,7 +62,7 @@ class Particles:
         FFTrho = fourier_gaussian(fftn(self.rho, workers=workers), sigma=Rs/self.h)
         self.FFTphi = FFTrho * Ghat
         if update_rho:
-            self.rho = ifftn(FFTrho).real
+            self.rho_smooth = ifftn(FFTrho).real
 
     def PotentialField(self, Rs=1, soft=1e-38, workers=4, update=False, pos=None, mass=None):
         '''
