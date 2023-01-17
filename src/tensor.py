@@ -48,7 +48,7 @@ class Particles:
         coords = 0.5*(ret.bin_edges[0][:-1] + ret.bin_edges[0][1:])
         self.coords = (coords, coords, coords)
     
-    def FFTpotential(self, Rs, soft=1e-38, workers=4):
+    def FFTpotential(self, Rs, soft=1e-38, workers=4, update_rho=True):
         '''
         Calculate the potential field in FFT.
 
@@ -58,7 +58,10 @@ class Particles:
         '''
         Ghat = -1. / (np.sum(self.k**2, axis=0) + soft)
         Ghat[0,0,0] = 0.
-        self.FFTphi = fourier_gaussian(fftn(self.rho, workers=workers), sigma=Rs/self.h) * Ghat
+        FFTrho = fourier_gaussian(fftn(self.rho, workers=workers), sigma=Rs/self.h)
+        self.FFTphi = FFTrho * Ghat
+        if update_rho:
+            self.rho = ifftn(FFTrho).real
 
     def PotentialField(self, Rs=1, soft=1e-38, workers=4, update=False, pos=None, mass=None):
         '''
