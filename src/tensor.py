@@ -45,7 +45,8 @@ class Particles:
             ret = binned_statistic_dd(pos, mass, statistic='sum', bins=self.ngrid, range=self.range)
         else:
             raise TypeError('mass must be a float scalar or 1D numpy array')
-        self.rho = ret.statistic / self.h**3
+        # self.rho = ret.statistic / self.h**3
+        self.rho = ret.statistic / np.mean(ret.statistic) - 1
         coords = 0.5*(ret.bin_edges[0][:-1] + ret.bin_edges[0][1:])
         self.coords = (coords, coords, coords)
     
