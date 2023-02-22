@@ -49,6 +49,18 @@ class Particles:
         self.rho = ret.statistic / np.mean(ret.statistic) - 1
         coords = 0.5*(ret.bin_edges[0][:-1] + ret.bin_edges[0][1:])
         self.coords = (coords, coords, coords)
+
+    def smooth(self, Rs, workers=4):
+        FFTrho = fourier_gaussian(fftn(self.rho, workers=workers), sigma=Rs/self.h)
+        self.rho_smooth = ifftn(FFTrho, workers=workers).real
+        return
+
+    def DensInterp(self, pos):
+        if self.rho_smooth is None:
+            raise TypeError('must smooth the density field first')
+        if self.coord is None:
+            raise TypeError('coord is None')
+        return interpn(self.coords, self.rho_smooth, pos)
     
     def FFTpotential(self, Rs, soft=1e-38, workers=4, update_rho=True):
         '''
