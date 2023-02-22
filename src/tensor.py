@@ -60,7 +60,7 @@ class Particles:
             raise TypeError('must smooth the density field first')
         if self.coords is None:
             raise TypeError('coords is None')
-        return interpn(self.coords, self.rho_smooth, pos)
+        return interpn(self.coords, self.rho_smooth, pos, bounds_error=False, fill_value=None)
     
     def FFTpotential(self, Rs, soft=1e-38, workers=4, update_rho=True):
         '''
