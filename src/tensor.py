@@ -5,10 +5,6 @@ from scipy.ndimage import fourier_gaussian
 from scipy.stats import binned_statistic_dd
 from scipy.interpolate import interpn
 import os, sys
-import multiprocessing
-
-# def task(x, k, workers, i, j):
-#     return ifftn(x*k[i]*k[j], workers=workers).real
 
 def interp_task(coord, pos, value, i):
     return interpn(coord, value[i], pos)
@@ -141,18 +137,6 @@ class Particles:
                 raise TypeError('pos and mass must not be none to update the grids')
         
         self.tensor = np.zeros((6, self.ngrid, self.ngrid, self.ngrid))       
-        ## old version
-        # def task(i, j):
-        #     index = int((i*i + i)/2 + j)
-        #     tensor[index] = ifftn(self.FFTphi*self.k[i]*self.k[j], workers=workers).real
-        # items = [(i, j) for i in range(3) for j in range(3) if j <= i]
-        # with multiprocessing.Pool() as pool:
-        #     pool.imap(task, items)
-        
-        # with multiprocessing.Pool() as pool:
-        #     results = [pool.apply_async(task, (self.FFTphi, self.k, workers, i, j,)) for i in range(3) for j in range(3) if j <= i]
-        #     for i, res in enumerate(results):
-        #         self.tensor[i] = res.get()
         
         for i in range(3):
             for j in range(i+1):
@@ -174,9 +158,7 @@ class Particles:
         for i in range(6):
             tensor[:,i] = interpn(self.coords, self.tensor[i], pos, bounds_error=False, fill_value=None)
         return tensor
-        # with multiprocessing.Pool() as pool:
-        #     results = [pool.apply(interp_task, args=(self.coords, pos, self.tensor, i)) for i in range(6)]
-        # return results
+
 
 if __name__ == '__main__':
     if len(sys.argv) != 2:
