@@ -17,6 +17,7 @@ class Particles:
         # grid level
         self.rho = np.zeros((ngrid, ngrid, ngrid))
         self.rho_smooth = None
+        self.FFTrho = None
         self.phi = None
         self.FFTphi = None
         self.tensor = None
@@ -47,8 +48,9 @@ class Particles:
         self.coords = (coords, coords, coords)
 
     def smooth(self, Rs, workers=4):
-        FFTrho = fourier_gaussian(fftn(self.rho, workers=workers), sigma=Rs/self.h)
-        self.rho_smooth = ifftn(FFTrho, workers=workers).real
+        if self.FFTrho is None:
+            self.FFTrho = fourier_gaussian(fftn(self.rho, workers=workers), sigma=Rs/self.h)
+        self.rho_smooth = ifftn(self.FFTrho, workers=workers).real
         return
 
     def DensInterp(self, pos):
@@ -58,7 +60,7 @@ class Particles:
             raise TypeError('coords is None')
         return interpn(self.coords, self.rho_smooth, pos, bounds_error=False, fill_value=None)
     
-    def FFTpotential(self, Rs, soft=1e-38, workers=4, update_rho=True):
+    def FFTpotential(self, Rs, soft=1e-38, workers=4, update=True):
         '''
         Calculate the potential field in FFT.
 
@@ -66,12 +68,13 @@ class Particles:
         soft:       softening
         workers:    CPU for FFT parallel computing
         '''
+        if self.FFTrho is None or update:
+            self.smooth(Rs, workers=workers)
+        
         Ghat = -1. / (np.sum(self.k**2, axis=0) + soft)
         Ghat[0,0,0] = 0.
-        FFTrho = fourier_gaussian(fftn(self.rho, workers=workers), sigma=Rs/self.h)
-        self.FFTphi = FFTrho * Ghat
-        if update_rho:
-            self.rho_smooth = ifftn(FFTrho).real
+        self.FFTphi = self.FFTrho * Ghat
+        return
 
     def PotentialField(self, Rs=1, soft=1e-38, workers=4, update=False, pos=None, mass=None):
         '''
@@ -141,7 +144,7 @@ class Particles:
         for i in range(3):
             for j in range(i+1):
                 index = int((i*i + i)/2 + j)
-                self.tensor[index] = ifftn(self.FFTphi*self.k[i]*self.k[j], workers=workers).real
+                self.tensor[index] = ifftn(-self.FFTphi*self.k[i]*self.k[j], workers=workers).real
     
     def TensorInterp(self, pos):
         '''
