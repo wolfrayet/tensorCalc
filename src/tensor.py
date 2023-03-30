@@ -69,7 +69,7 @@ class Particles:
         workers:    CPU for FFT parallel computing
         '''
         if self.FFTrho is None or update:
-            self.smooth(Rs, workers=workers)
+            self.smooth(Rs, workers=workers, update=update)
         
         Ghat = -1. / (np.sum(self.k**2, axis=0) + soft)
         Ghat[0,0,0] = 0.
