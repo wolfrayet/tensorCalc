@@ -47,8 +47,8 @@ class Particles:
         coords = 0.5*(ret.bin_edges[0][:-1] + ret.bin_edges[0][1:])
         self.coords = (coords, coords, coords)
 
-    def smooth(self, Rs, workers=4):
-        if self.FFTrho is None:
+    def smooth(self, Rs, workers=4, update=False):
+        if self.FFTrho is None or update:
             self.FFTrho = fourier_gaussian(fftn(self.rho, workers=workers), sigma=Rs/self.h)
         self.rho_smooth = ifftn(self.FFTrho, workers=workers).real
         return
